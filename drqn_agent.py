@@ -1,4 +1,4 @@
-'''DRQN Agent'''
+'''DRQN Agent Author by: Crystal Yin & AkChen'''
 
 import tensorflow as tf
 import numpy as np
@@ -6,9 +6,13 @@ import numpy as np
 
 class DRQNAgent(object):
 
-    # 清空rnn历史相关,用于保留历史的state
-    def reset_history(self):
-        self.total_t = 0 # 重置长度
+    def reset_train_history(self):
+        self.total_b = 0
+        for i in range(self.batch_size):
+            self.batch_history_steps[i] = 0
+
+    def rest_step_history(self):
+        self.total_t = 0
 
     def __init__(self,
                  sess,
@@ -18,9 +22,9 @@ class DRQNAgent(object):
                  epsilon_start=1.0,
                  epsilon_end=0.1,
                  epsilon_decay_steps=20000,
-                 batch_size=32,
-                 action_num=2,
+                 batch_size=32, # 每次train传入batch_size个数据，而step传入一个数据
                  max_step=50,
+                 action_num=2,
                  state_shape=None,
                  train_every=1,
                  mlp_layers=None,
@@ -42,11 +46,29 @@ class DRQNAgent(object):
         self.epsilon_start = epsilon_start
         self.epsilon_end = epsilon_end
 
-        # 保存每个时间戳的数据
-        self.history_states = [np.random.random(self.state_shape) for e in range(self.max_step)]
+        # for training temp
+        # [batch_size,max_step,state_shape]
+        temp_shape = [batch_size,max_step]
+        for e in self.state_shape:
+            temp_shape.append(e)
+        self.batch_history_states = np.zeros(temp_shape).astype(float)
+        self.batch_history_next_states = np.zeros(temp_shape).astype(float)
+        temp_shape = [batch_size,max_step]
+        self.batch_history_actions = np.zeros(temp_shape).astype(int)
+        self.batch_history_reward = np.zeros(temp_shape).astype(float)
+        self.batch_history_done = np.ones(temp_shape).astype(bool)
+        self.batch_history_steps = np.zeros([self.batch_size]).astype(int)
 
-        # Total timesteps
+        # for step temp
+        temp_shape = [max_step]
+        for e in self.state_shape:
+            temp_shape.append(e)
+        self.history_states = np.zeros(temp_shape).astype(float)
+
+        # Total time step , for step and eval
         self.total_t = 0
+        # Total batch_size, for training
+        self.total_b = 0
 
 
         # The epsilon decay scheduler
@@ -62,15 +84,40 @@ class DRQNAgent(object):
                                           state_shape=state_shape,mlp_layers=mlp_layers,
                                           lstm_units=lstm_units)
 
-    # return data:[1,max_step,state_shape],step_length:[1]
+    # for training
+    # saving data of every round game to the history
+    def feed(self,trans):
+        for t,ts in enumerate(trans):
+            if t >= self.max_step:
+                print('cur time step bigger than the max step, please enlarge the max step parameter.')
+            (state, action, reward, next_state, done) = tuple(ts)
+            self.batch_history_states[self.total_b][t] = state['obs']
+            self.batch_history_next_states[self.total_b][t] = next_state['obs']
+            self.batch_history_reward[self.total_b][t] = reward
+            self.batch_history_done[self.total_b][t] = done
+            self.batch_history_actions[self.total_b][t] = action
 
-    # 训练的时候进行step
+        self.batch_history_steps[self.total_b] = len(trans)
+
+        self.total_b = (self.total_b + 1)
+
+        # need to train
+        if self.total_b == self.batch_size:
+            self.batch_train()
+            self.reset_train_history()
+
+    # 批量训练
+    def batch_train(self):
+        return 0
+
+
+    # 训练的时候进行step，同时保存数据到历史中
+    # 由于rlcard每次只能传入一个数据
     def step(self,state):
-        # 放入数据
         self.history_states[self.total_t] = state['obs']
         self.total_t += 1
-        if(self.total_t>self.max_step):
-            print("totoal_t is lagger than max_step")
+        if (self.total_t > self.max_step):
+            print("step:totoal_t is lagger than max_step")
         estimator_data,step_length = np.asarray([self.history_states]),np.asarray([self.total_t])
         action_prob = self.predict(estimator_data,step_length)[0] # batch_size =1 取第一个
         action_prob = remove_illegal(action_prob, state['legal_actions'])
@@ -83,14 +130,17 @@ class DRQNAgent(object):
         self.history_states[self.total_t] = state['obs']
         self.total_t += 1
         if (self.total_t > self.max_step):
-            print("totoal_t is lagger than max_step")
+            print("eval_step:totoal_t is lagger than max_step")
         estimator_data, step_length = np.asarray([self.history_states]), np.asarray([self.total_t])
         q_values = self.q_estimator.predict(self.sess, estimator_data, step_length)[0] # batch_size = 1 所以取第一个
         probs = remove_illegal(np.exp(q_values), state['legal_actions'])
         best_action = np.argmax(probs)
         return best_action, probs
 
+
+    # for train
     def predict(self, batch_state_seq,batch_length):
+        # batch_state_seq : [batch_size,max_step,data_length]
         epsilon = self.epsilons[min(self.total_t, self.epsilon_decay_steps - 1)]
         A = []
         for e in batch_length:

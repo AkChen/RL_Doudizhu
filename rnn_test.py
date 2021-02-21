@@ -1,6 +1,11 @@
 import tensorflow as tf
 import numpy as np
 
+a = np.random.random([10,5])
+print(a)
+a[0] = [1,2,3,4]
+print(a)
+exit()
 X_pl = tf.placeholder(dtype=tf.float32,shape =[None,3,6,5,14])
 Len_pl = tf.placeholder(dtype=tf.int32,shape =[None])
 
