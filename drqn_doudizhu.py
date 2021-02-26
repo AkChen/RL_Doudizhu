@@ -13,10 +13,23 @@ agent2 = DRQNAgent(sess,'drqn2',max_step=40,mlp_layers=[32,64],lstm_units=64,
 agent3 = DRQNAgent(sess,'drqn3',max_step=40,mlp_layers=[32,64],lstm_units=64,
                   state_shape=env.state_shape,action_num=env.action_num)
 
+
+
 sess.run(tf.global_variables_initializer())
 
+agents = [agent1,agent2,agent3]
+env.set_agents(agents)
 
-env.set_agents([agent1,agent2,agent3])
+X_round = 10000 # rouds of game
+for i in range(X_round):
+    for agent in agents:
+        agent.reset_step_history()
+    all_trans,_ = env.run(is_training=True)
+    for agent_i,agent in enumerate(agents):
+        agent_trans = all_trans[agent_i]
+        trans_list = []
+        #for j,trans in enumerate(agent_trans):
+            #trans_list.append(trans)
+            #agent.feed(trans_list)
+        agent.feed(agent_trans)
 
-trans,_ = env.run(is_training=True)
-print(len(trans[0]))
