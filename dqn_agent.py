@@ -236,6 +236,7 @@ class Estimator():
         self.learning_rate=learning_rate
         self.state_shape = state_shape if isinstance(state_shape, list) else [state_shape]
         self.mlp_layers = map(int, mlp_layers)
+        self.global_steps = tf.Variable(0,trainable=False)
 
         with tf.variable_scope(scope):
             # Build the graph
@@ -245,7 +246,7 @@ class Estimator():
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, name='dqn_adam')
 
         with tf.control_dependencies(update_ops):
-            self.train_op = self.optimizer.minimize(self.loss, global_step=tf.contrib.framework.get_global_step())
+            self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_steps)
 
     def _build_model(self):
         ''' Build an MLP model.
@@ -309,7 +310,7 @@ class Estimator():
         '''
         feed_dict = { self.X_pl: s, self.y_pl: y, self.actions_pl: a, self.is_train: True}
         _, _, loss = sess.run(
-                [tf.contrib.framework.get_global_step(), self.train_op, self.loss],
+                [self.global_steps, self.train_op, self.loss],
                 feed_dict)
         return loss
 

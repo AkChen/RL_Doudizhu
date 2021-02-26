@@ -28,6 +28,7 @@ class DRQNAgent(object):
                  action_num=2,
                  state_shape=None,
                  train_every_t=1, # train drqn every trans
+                 show_info_every = 50,
                  mlp_layers=None,
                  lstm_units=64,
                  learning_rate=0.00005,
@@ -78,6 +79,8 @@ class DRQNAgent(object):
         self.cur_step = 0
         # train num
         self.train_t = 0
+
+        self.show_info_every = show_info_every
 
 
 
@@ -172,11 +175,11 @@ class DRQNAgent(object):
                        self.discount_factor * q_values_next_target[np.arange(self.batch_size), best_next_actions]
 
         loss = self.q_estimator.update(self.sess, batch_states, batch_actions, target_batch,batch_step_length)
-
-        print('\rINFO - Agent {}, step {}, rl-loss: {}'.format(self.scope, self.total_t, loss), end='')
-
         self.train_t += 1
-        return 0
+        if self.train_t % self.show_info_every == 0:
+            print('INFO - Agent {}, step {}, rl-loss: {}\n'.format(self.scope, self.total_t, loss), end='')
+
+        return loss
 
     # 训练的时候进行step，同时保存数据到历史中
     def step(self, state):
@@ -293,7 +296,7 @@ class Estimator():
         if param_dict is not None:
             self.cell = param_dict['cell']
         else:
-            self.cell = tf.nn.rnn_cell.LSTMCell(self.lstm_units)
+            self.cell = tf.nn.rnn_cell.LSTMCell(self.lstm_units,activation=tf.tanh)
 
         batch_size = tf.shape(self.X_pl)[0]
         self.init_state = self.cell.zero_state(batch_size, dtype=tf.float32)
@@ -303,7 +306,7 @@ class Estimator():
         if param_dict is not None:
             self.predict_dense = param_dict['predict_dense']
         else:
-            self.predict_dense = tf.layers.Dense(self.action_num, activation=tf.tanh,
+            self.predict_dense = tf.layers.Dense(self.action_num, activation=None,
                                         kernel_initializer=tf.contrib.layers.xavier_initializer(),
                                         bias_initializer=tf.zeros_initializer())
 
@@ -357,7 +360,7 @@ class Estimator():
         gs, _, loss = sess.run(
             [self.global_steps, self.train_op, self.loss],
             feed_dict=feed_dict)
-        print(gs)
+
         return loss
 
 
@@ -379,3 +382,35 @@ def remove_illegal(action_probs, legal_actions):
     else:
         probs /= sum(probs)
     return probs
+
+# 评测方法
+def drqn_tournament(env, num):
+    ''' Evaluate he performance of the agents in the environment
+
+    Args:
+        env (Env class): The environment to be evaluated.
+        num (int): The number of games to play.
+
+    Returns:
+        A list of avrage payoffs for each player
+    '''
+    payoffs = [0 for _ in range(env.player_num)]
+    counter = 0
+    while counter < num:
+        for agent in env.agents:
+            agent.reset_step_history()
+        # 每次run之前需要reset history
+        _, _payoffs = env.run(is_training=False)
+        if isinstance(_payoffs, list):
+            for _p in _payoffs:
+                for i, _ in enumerate(payoffs):
+                    payoffs[i] += _p[i]
+                counter += 1
+        else:
+            for i, _ in enumerate(payoffs):
+                payoffs[i] += _payoffs[i]
+            counter += 1
+    for i, _ in enumerate(payoffs):
+        payoffs[i] /= counter
+    return payoffs
+
