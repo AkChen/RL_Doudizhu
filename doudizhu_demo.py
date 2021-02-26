@@ -7,8 +7,12 @@ env.set_agents([RandomAgent(env.action_num),RandomAgent(env.action_num),RandomAg
 
 # 让他们进行一轮斗地主
 
-for i in range(100):
+a = 0
+for i in range(1000):
     trans,_ = env.run(is_training=True)
-    print(len(trans[0]))
+    if(len(trans[0]) > a):
+        print(len(trans[0]))
+        a = len(trans[0])
+
 
 print('')
