@@ -1,4 +1,4 @@
-'''DRQN Agent Author by: Crystal Yin & AkChen'''
+'''DRQN Agent implemented by: Crystal Yin & AkChen'''
 
 import tensorflow as tf
 import numpy as np
