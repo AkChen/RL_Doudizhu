@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 
 import rlcard
-from drqn_agent import DRQNAgent, drqn_tournament
+from rlcard.agents.dqn_agent import DQNAgent
 from rlcard.utils import set_global_seed, tournament
 from rlcard.utils import Logger
 
@@ -22,25 +22,24 @@ memory_init_size = 100
 train_every = 1
 
 # The paths for saving the logs and learning curves
-log_dir = './experiments/blackjack_drqn_result/'
+log_dir = './experiments/blackjack_dqn_result/'
 
 # Set a global seed
 set_global_seed(0)
 
 with tf.Session() as sess:
+
     # Initialize a global step
     global_step = tf.Variable(0, name='global_step', trainable=False)
 
     # Set up the agents
-    agent = DRQNAgent(sess,
-                      scope='drqn',
-                      action_num=env.action_num,
-                      memory_init_size=memory_init_size,
-                      train_every_t=train_every,
-                      state_shape=env.state_shape,
-                      mlp_layers=[16,32],
-                      lstm_units=32)
-
+    agent = DQNAgent(sess,
+                     scope='dqn',
+                     action_num=env.action_num,
+                     replay_memory_init_size=memory_init_size,
+                     train_every=train_every,
+                     state_shape=env.state_shape,
+                     mlp_layers=[10,10])
     env.set_agents([agent])
     eval_env.set_agents([agent])
 
@@ -53,28 +52,24 @@ with tf.Session() as sess:
     for episode in range(episode_num):
 
         # Generate data from the environment
-        agent.reset_step_history()
         trajectories, _ = env.run(is_training=True)
 
         # Feed transitions into agent memory, and train the agent
-        trans_history = []
         for ts in trajectories[0]:
-            trans_history.append(ts)
-            agent.feed(trans_history)
+            agent.feed(ts)
 
-        #print(episode)
+        # Evaluate the performance. Play with random agents.
         if episode % evaluate_every == 0:
-            print('')
-            logger.log_performance(env.timestep, drqn_tournament(eval_env, evaluate_num)[0])
+            logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
 
     # Close files in the logger
     logger.close_files()
 
     # Plot the learning curve
-    logger.plot('DRQN')
+    logger.plot('DQN')
 
     # Save model
-    save_dir = 'models/blackjack_drqn'
+    save_dir = 'models/blackjack_dqn'
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     saver = tf.train.Saver()

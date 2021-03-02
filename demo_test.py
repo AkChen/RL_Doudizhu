@@ -3,6 +3,7 @@ import os
 
 import rlcard
 from dqn_agent import DQNAgent
+from rlcard.agents import RandomAgent
 from rlcard.utils import set_global_seed, tournament
 from rlcard.utils import Logger
 
@@ -27,50 +28,39 @@ log_dir = './experiments/blackjack_dqn_result/'
 # Set a global seed
 set_global_seed(0)
 
-with tf.Session() as sess:
 
-    # Initialize a global step
-    global_step = tf.Variable(0, name='global_step', trainable=False)
 
-    # Set up the agents
-    agent = DQNAgent(sess,
-                     scope='dqn',
-                     action_num=env.action_num,
-                     replay_memory_init_size=memory_init_size,
-                     train_every=train_every,
-                     state_shape=env.state_shape,
-                     mlp_layers=[10,10])
-    env.set_agents([agent])
-    eval_env.set_agents([agent])
+# Set up the agents
+agent = RandomAgent(action_num=env.action_num)
 
-    # Initialize global variables
-    sess.run(tf.global_variables_initializer())
+env.set_agents([agent])
+eval_env.set_agents([agent])
 
-    # Init a Logger to plot the learning curve
-    logger = Logger(log_dir)
+# Initialize global variables
 
-    for episode in range(episode_num):
 
-        # Generate data from the environment
-        trajectories, _ = env.run(is_training=True)
+# Init a Logger to plot the learning curve
+logger = Logger(log_dir)
 
-        # Feed transitions into agent memory, and train the agent
-        for ts in trajectories[0]:
-            agent.feed(ts)
+for episode in range(episode_num):
 
-        # Evaluate the performance. Play with random agents.
-        if episode % evaluate_every == 0:
-            logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
+    # Generate data from the environment
+    trajectories, _ = env.run(is_training=True)
 
-    # Close files in the logger
-    logger.close_files()
+    # Feed transitions into agent memory, and train the agent
 
-    # Plot the learning curve
-    logger.plot('DQN')
+    # Evaluate the performance. Play with random agents.
+    if episode % evaluate_every == 0:
+        logger.log_performance(env.timestep, tournament(eval_env, evaluate_num)[0])
 
-    # Save model
-    save_dir = 'models/blackjack_dqn'
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-    saver = tf.train.Saver()
-    saver.save(sess, os.path.join(save_dir, 'model'))
+# Close files in the logger
+logger.close_files()
+
+# Plot the learning curve
+logger.plot('DQN')
+
+# Save model
+save_dir = 'models/blackjack_dqn'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+saver = tf.train.Saver()

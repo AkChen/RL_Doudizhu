@@ -8,9 +8,14 @@ class DRQNAgent(object):
 
     def reset_train_history(self):
         self.cur_t = 0
-        for i in range(self.batch_size):
+        if self.total_t < self.memory_size:
+            high_bound = self.total_t
+        else:
+            high_bound = self.memory_size
+        for i in range(high_bound):
             self.memory_history_steps[i] = 0
 
+    # 每次run之前需要调用
     def reset_step_history(self):
         self.cur_step = 0
 
@@ -23,16 +28,17 @@ class DRQNAgent(object):
                  epsilon_end=0.1,
                  epsilon_decay_steps=20000,
                  batch_size=32,  # 每次train传入batch_size个数据，而step传入一个数据
-                 memory_size = 100,
+                 memory_size=20000,
+                 memory_init_size=100,
                  max_step=50,
                  action_num=2,
                  state_shape=None,
-                 train_every_t=1, # train drqn every trans
-                 show_info_every = 50,
+                 train_every_t=1,  # train drqn every trans
+                 show_info_every=50,
                  mlp_layers=None,
                  lstm_units=64,
                  learning_rate=0.00005,
-                 param_dict = None):
+                 param_dict=None):
         self.use_raw = False
         self.sess = sess
         self.scope = scope
@@ -41,7 +47,9 @@ class DRQNAgent(object):
         self.epsilon_decay_steps = epsilon_decay_steps
         self.batch_size = batch_size
         self.memory_size = memory_size
-        assert(self.batch_size <= self.memory_size)
+        self.memory_init_size = memory_init_size
+        assert (self.batch_size <= self.memory_init_size)
+        assert (self.memory_init_size <= self.memory_size)
         self.action_num = action_num
         self.train_every_t = train_every_t
         self.max_step = max_step
@@ -82,8 +90,6 @@ class DRQNAgent(object):
 
         self.show_info_every = show_info_every
 
-
-
         # The epsilon decay scheduler
         self.epsilons = np.linspace(epsilon_start, epsilon_end, epsilon_decay_steps)
         # Create estimators
@@ -95,22 +101,23 @@ class DRQNAgent(object):
         self.q_estimator = Estimator(scope=self.scope + "_q", action_num=action_num,
                                      learning_rate=learning_rate, max_step=max_step,
                                      state_shape=state_shape, mlp_layers=mlp_layers,
-                                     lstm_units=lstm_units,param_dict=param_dict['q_net'])
+                                     lstm_units=lstm_units, param_dict=param_dict['q_net'])
 
         self.target_estimator = Estimator(scope=self.scope + "_target_q", action_num=action_num,
                                           learning_rate=learning_rate, max_step=max_step,
                                           state_shape=state_shape, mlp_layers=mlp_layers,
-                                          lstm_units=lstm_units,param_dict=param_dict['target_q_net'])
+                                          lstm_units=lstm_units, param_dict=param_dict['target_q_net'])
 
     # for training
     # feed a time-step sample into memory
     def feed(self, trans):
         # randomly select a tans that length >= 1
         assert len(trans) >= 1
-        random_start_index = np.random.randint(low=0,high=len(trans))
+
+        random_start_index = 0  # np.random.randint(low=0,high=len(trans))
         random_start_trans = trans[random_start_index:]
         for t, ts in enumerate(random_start_trans):
-            assert(t < self.max_step)
+            assert (t < self.max_step)
             (state, action, reward, next_state, done) = tuple(ts)
             self.memory_history_states[self.cur_t][t] = state['obs']
             self.memory_history_actions[self.cur_t][t] = action
@@ -122,19 +129,19 @@ class DRQNAgent(object):
         self.memory_history_steps[self.cur_t] = len(random_start_trans)
         self.total_t = self.total_t + 1
         # cycle feeding
-        self.cur_t = (self.cur_t + 1) % self.memory_size
+        self.cur_t = self.total_t % self.memory_size
 
         # need to train ?
-        if self.total_t >= self.memory_size and (self.total_t - self.memory_size) % self.train_every_t == 0:
+        if self.total_t >= self.memory_init_size and (self.total_t - self.memory_init_size) % self.train_every_t == 0:
             self.batch_train()
-            self.reset_train_history()
+            # self.reset_train_history()
 
         # make sure the source q-net have been trained as least once.
-        if self.total_t >= self.memory_size and self.train_t % self.update_target_estimator_every == 0:
-            self.copy_esimator_params(self.sess,self.q_estimator,self.target_estimator)
-            print("copy params finished")
+        if self.total_t >= self.memory_init_size and self.train_t % self.update_target_estimator_every == 0:
+            self.copy_esimator_params(self.sess, self.q_estimator, self.target_estimator)
+            print("INFO - copy params finished\n")
 
-    def copy_esimator_params(self,sess,estimator1,estimator2):
+    def copy_esimator_params(self, sess, estimator1, estimator2):
 
         e1_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator1.scope)]
         e1_params = sorted(e1_params, key=lambda v: v.name)
@@ -151,15 +158,22 @@ class DRQNAgent(object):
 
     # return estimator_data, step_length
     def sample_from_memory(self):
-        random_index = np.random.randint(low=0,high=self.batch_size,size=self.batch_size)
+        if self.total_t < self.memory_size:
+            high_bound = self.total_t
+        else:
+            high_bound = self.memory_size
+
+        # assert(high_bound >= self.batch_size)
+
+        random_index = np.random.randint(low=0, high=high_bound, size=self.batch_size)
         batch_step_length = self.memory_history_steps[random_index]
         batch_states = self.memory_history_states[random_index]
         batch_next_states = self.memory_history_next_states[random_index]
-        batch_actions = self.memory_history_actions[random_index,batch_step_length-1]
-        batch_reward = self.memory_history_reward[random_index,batch_step_length-1]
-        batch_done = self.memory_history_done[random_index,batch_step_length-1]
+        batch_actions = self.memory_history_actions[random_index, batch_step_length - 1]
+        batch_reward = self.memory_history_reward[random_index, batch_step_length - 1]
+        batch_done = self.memory_history_done[random_index, batch_step_length - 1]
 
-        return batch_states, batch_actions, batch_reward, batch_next_states, batch_done,batch_step_length
+        return batch_states, batch_actions, batch_reward, batch_next_states, batch_done, batch_step_length
 
     # 批量训练
     def batch_train(self):
@@ -167,14 +181,14 @@ class DRQNAgent(object):
         batch_states, batch_actions, batch_reward, batch_next_states, batch_done, batch_step_length = self.sample_from_memory()
 
         # 通过q_net预测batch中每个样本在每个action上的概率
-        q_value_next = self.q_estimator.predict(self.sess,batch_next_states,batch_step_length)
-        best_next_actions = np.argmax(q_value_next,axis=1)
-        q_values_next_target = self.target_estimator.predict(self.sess, batch_next_states,batch_step_length)
+        q_value_next = self.q_estimator.predict(self.sess, batch_next_states, batch_step_length)
+        best_next_actions = np.argmax(q_value_next, axis=1)
+        q_values_next_target = self.target_estimator.predict(self.sess, batch_next_states, batch_step_length)
 
         target_batch = batch_reward + np.invert(batch_done).astype(np.float32) * \
                        self.discount_factor * q_values_next_target[np.arange(self.batch_size), best_next_actions]
 
-        loss = self.q_estimator.update(self.sess, batch_states, batch_actions, target_batch,batch_step_length)
+        loss = self.q_estimator.update(self.sess, batch_states, batch_actions, target_batch, batch_step_length)
         self.train_t += 1
         if self.train_t % self.show_info_every == 0:
             print('INFO - Agent {}, step {}, rl-loss: {}\n'.format(self.scope, self.total_t, loss), end='')
@@ -251,7 +265,7 @@ class Estimator():
             self._build_model(param_dict)
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=tf.get_variable_scope().name)
 
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, name=self.scope+'drqn_adam')
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate, name=self.scope + 'drqn_adam')
 
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_steps)
@@ -296,7 +310,7 @@ class Estimator():
         if param_dict is not None:
             self.cell = param_dict['cell']
         else:
-            self.cell = tf.nn.rnn_cell.LSTMCell(self.lstm_units,activation=tf.tanh)
+            self.cell = tf.nn.rnn_cell.LSTMCell(self.lstm_units, activation=tf.tanh)
 
         batch_size = tf.shape(self.X_pl)[0]
         self.init_state = self.cell.zero_state(batch_size, dtype=tf.float32)
@@ -307,26 +321,26 @@ class Estimator():
             self.predict_dense = param_dict['predict_dense']
         else:
             self.predict_dense = tf.layers.Dense(self.action_num, activation=None,
-                                        kernel_initializer=tf.contrib.layers.xavier_initializer(),
-                                        bias_initializer=tf.zeros_initializer())
+                                                 kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                                 bias_initializer=tf.zeros_initializer())
 
         # [batch_size,max_step,action_num]
         self.predictions_max_step = self.predict_dense.apply(self.lstm_output)
 
         # 构建取最后一个时间点的索引
-        self.predict_idx = tf.concat([tf.reshape(tf.range(batch_size),[batch_size,1]),
-                                      tf.reshape(tf.subtract(self.T_pl,1),[batch_size,1])],axis=1)
+        self.predict_idx = tf.concat([tf.reshape(tf.range(batch_size), [batch_size, 1]),
+                                      tf.reshape(tf.subtract(self.T_pl, 1), [batch_size, 1])], axis=1)
 
         # [batch,action_num]
-        self.predictions = tf.gather_nd(self.predictions_max_step,self.predict_idx)
+        self.predictions = tf.gather_nd(self.predictions_max_step, self.predict_idx)
         # self.predictions =
 
         # 计算loss, 照抄DQN的实现部分
         #                                                 action_num
         gather_indices = tf.range(batch_size) * tf.shape(self.predictions)[1] + self.actions_pl
-        #gather_indices = tf.range(batch_size * self.max_time_step) * self.action_num + tf.reshape(self.actions_pl, [-1])
-        #self.action_predictions = tf.reshape(tf.gather(tf.reshape(self.predictions, [-1]), gather_indices),
-                                             #[batch_size, self.max_time_step])
+        # gather_indices = tf.range(batch_size * self.max_time_step) * self.action_num + tf.reshape(self.actions_pl, [-1])
+        # self.action_predictions = tf.reshape(tf.gather(tf.reshape(self.predictions, [-1]), gather_indices),
+        # [batch_size, self.max_time_step])
         self.action_predictions = tf.gather(tf.reshape(self.predictions, [-1]), gather_indices)
         self.losses = tf.squared_difference(self.y_pl, self.action_predictions)
         self.loss = tf.reduce_mean(self.losses)
@@ -338,7 +352,6 @@ class Estimator():
                                                                 self.is_train: False})
         return prediction_prob
 
-
     def get_param_dict(self):
         dic = dict()
 
@@ -348,7 +361,7 @@ class Estimator():
 
         return dic
 
-    def update(self, sess, s, a, y,T):
+    def update(self, sess, s, a, y, T):
         '''
         :param sess: session
         :param s: batch_stats [batch_size,max_step,state_shape]
@@ -356,7 +369,7 @@ class Estimator():
         :param y: batch_y [batch_size]
         :return: loss
         '''
-        feed_dict = {self.X_pl: s, self.y_pl: y, self.actions_pl: a, self.is_train: True,self.T_pl:T}
+        feed_dict = {self.X_pl: s, self.y_pl: y, self.actions_pl: a, self.is_train: True, self.T_pl: T}
         gs, _, loss = sess.run(
             [self.global_steps, self.train_op, self.loss],
             feed_dict=feed_dict)
@@ -382,6 +395,7 @@ def remove_illegal(action_probs, legal_actions):
     else:
         probs /= sum(probs)
     return probs
+
 
 # 评测方法
 def drqn_tournament(env, num):
@@ -413,4 +427,3 @@ def drqn_tournament(env, num):
     for i, _ in enumerate(payoffs):
         payoffs[i] /= counter
     return payoffs
-
