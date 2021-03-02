@@ -96,7 +96,10 @@ class MPMCTSAgent(object):
         return node
 
     def default_policy(self, node: MPMCTSTreeNode,env:Env):
+        if env.is_over():
+            return env.get_payoffs()
         player_id = env.get_player_id()
+        #print(player_id)
         action = random.sample(node.legal_actions[player_id], 1)[0]
         while not env.is_over():
             # step forward
@@ -104,8 +107,7 @@ class MPMCTSAgent(object):
             if not env.is_over():
                 action = random.sample(next_state['legal_actions'],1)[0]
         # game over
-        rewards = env.get_payoffs()
-        return rewards
+        return env.get_payoffs()
 
 
 
@@ -113,6 +115,7 @@ class MPMCTSAgent(object):
         # while game not over
         # selection, 从tree中往下选择出节点进行扩张(TreePolicy)
         v = self.tree_policy(self.tree_root,env)
+        # 扩展后没有结束游戏，进行模拟
         rewards = self.default_policy(v,env)
         while v is not None:
             for i in range(env.player_num):
@@ -137,22 +140,29 @@ class MPMCTSAgent(object):
                                         player_num=self.env.action_num)
         # 模拟次数
         # 时间戳记录
-        ts = self.env.timestep
+        temp_timestep = self.env.timestep
+        #print("temp_ts:{} ".format(temp_timestep))
         for i in range(100):
             #env_copy = copy.deepcopy(self.env)
-            print("sim i:{}".format(i))
+            #print("sim i:{}".format(i))
             self.run_simulation(self.env)
             # 恢复初始状态
-            for j in range(self.env.timestep-ts):
+            for j in range(self.env.timestep-temp_timestep):
                 if not self.env.step_back():
                     print("step back false")
-            self.env.timestep = ts
-
-
+            self.env.timestep = temp_timestep
 
         # 获取当前玩家最大ucb值
         max_UCB_node = self.get_max_UCB_child_node(self.tree_root,0,self.env.get_player_id())
+        cur_hand = self.env.game.players[self.env.get_player_id()].current_hand
+        hand_str = ""
+        for c in cur_hand:
+            if len(c.rank) > 0:
+                hand_str += c.rank
+            else:
+                hand_str += c.suit[0:1]
 
+        print("landlord:{} player_id:{} hand:{} action:{}".format(self.env.game.round.landlord_id,cur_player_id,hand_str,self.env._ACTION_LIST[max_UCB_node.action]))
         return max_UCB_node.action
 
     def eval_step(self,ts):
@@ -172,8 +182,11 @@ def mcts_tournament(env, num):
     payoffs = [0 for _ in range(env.player_num)]
     counter = 0
     while counter < num:
-        print(counter)
+        print("counter:{}".format(counter))
+
         _, _payoffs = env.run(is_training=False)
+        for p in range(env.player_num):
+            print(env.game.players[p].initial_hand)
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):
