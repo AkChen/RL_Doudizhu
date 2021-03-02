@@ -118,10 +118,13 @@ class MCTSAgent(object):
         legal_actions = ts['legal_actions']#state['legal_actions']
         self.tree_root = MCTSTreeNode(key=ROOT_KEY, action=ROOT_ACTION, legal_actions=legal_actions, parent=None)
         # 模拟次数
+        temp_timestep = self.env.timestep
         for i in range(100):
-            env_copy = copy.deepcopy(self.env)
-            self.run_simulation(env_copy)
-            env_copy.step_back()
+            #env_copy = copy.deepcopy(self.env)
+            self.run_simulation(self.env)
+            while self.env.timestep > temp_timestep:
+                self.env.timestep -= 1
+                self.env.step_back()
 
         max_UCB_node = self.get_max_UCB_child_node(self.tree_root,0)
 

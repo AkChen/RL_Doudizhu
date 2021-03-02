@@ -25,6 +25,8 @@ class MPMCTSTreeNode(object):
 
 
 
+
+
 class MPMCTSAgent(object):
 
     def __init__(self,env:Env, # for simulation
@@ -142,7 +144,7 @@ class MPMCTSAgent(object):
         # 时间戳记录
         temp_timestep = self.env.timestep
         #print("temp_ts:{} ".format(temp_timestep))
-        for i in range(100):
+        for i in range(150):
             #env_copy = copy.deepcopy(self.env)
             #print("sim i:{}".format(i))
             self.run_simulation(self.env)

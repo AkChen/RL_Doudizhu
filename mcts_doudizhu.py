@@ -4,11 +4,13 @@ import os
 import rlcard
 from multi_player_mcts_agent import MPMCTSAgent,mcts_tournament
 from rlcard.utils import set_global_seed,tournament
+from rlcard.agents import RandomAgent
 from rlcard.utils import Logger
 
 
 
 eval_env = rlcard.make('doudizhu', config={'seed': 0,'allow_step_back':True})
+
 
 # Set the iterations numbers and how frequently we evaluate/save plot
 evaluate_every = 1000
@@ -22,8 +24,8 @@ set_global_seed(0)
 
 # Set up the agents
 agent = MPMCTSAgent(eval_env)
-
-eval_env.set_agents([agent,agent,agent])
+rdm_agent = RandomAgent(action_num=eval_env.action_num)
+eval_env.set_agents([agent,rdm_agent,rdm_agent])
 
 
 # Init a Logger to plot the learning curve
