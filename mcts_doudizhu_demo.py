@@ -2,13 +2,15 @@ import tensorflow as tf
 import os
 
 import rlcard
-from mcts_agent import MCTSAgent,mcts_tournament
+from mcts_doudizhu_agent import MPMCTSAgent,mcts_tournament
 from rlcard.utils import set_global_seed,tournament
+from rlcard.agents import RandomAgent
 from rlcard.utils import Logger
 
 
 
-eval_env = rlcard.make('blackjack', config={'seed': 0,'allow_step_back':True})
+eval_env = rlcard.make('doudizhu', config={'seed': 0,'allow_step_back':True})
+
 
 # Set the iterations numbers and how frequently we evaluate/save plot
 evaluate_every = 1000
@@ -21,9 +23,9 @@ log_dir = './experiments/blackjack_mcts_result/'
 set_global_seed(0)
 
 # Set up the agents
-agent = MCTSAgent(eval_env)
-
-eval_env.set_agents([agent])
+agent = MPMCTSAgent(eval_env)
+rdm_agent = RandomAgent(action_num=eval_env.action_num)
+eval_env.set_agents([agent,agent,agent])
 
 
 # Init a Logger to plot the learning curve

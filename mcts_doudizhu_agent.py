@@ -3,6 +3,7 @@ from rlcard.envs import Env
 import time
 import random
 from math import log,sqrt
+
 # single player tree
 ROOT_KEY = 0
 ROOT_ACTION = 0
@@ -23,10 +24,6 @@ class MPMCTSTreeNode(object):
 
 
 
-
-
-
-
 class MPMCTSAgent(object):
 
     def __init__(self,env:Env, # for simulation
@@ -39,6 +36,7 @@ class MPMCTSAgent(object):
 
 
     def get_untried_action(self,node:MPMCTSTreeNode,player_id):
+
         for legal_action in node.legal_actions[player_id]:
             # action没有扩张或者这个player_id访问的次数为1(初始化次数)
             if (not node.children.__contains__(legal_action)) or (node.children[legal_action].visit_num[player_id] == 1):
@@ -144,7 +142,7 @@ class MPMCTSAgent(object):
         # 时间戳记录
         temp_timestep = self.env.timestep
         #print("temp_ts:{} ".format(temp_timestep))
-        for i in range(150):
+        for i in range(200):
             #env_copy = copy.deepcopy(self.env)
             #print("sim i:{}".format(i))
             self.run_simulation(self.env)

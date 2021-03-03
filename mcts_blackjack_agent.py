@@ -89,6 +89,7 @@ class MCTSAgent(object):
 
     def default_policy(self, node: MCTSTreeNode,env:Env):
         action = random.sample(node.legal_actions, 1)[0]
+
         while not env.is_over():
             # step forward
             next_state,next_player_id = env.step(action,False)
@@ -103,6 +104,8 @@ class MCTSAgent(object):
     def run_simulation(self,env:Env):
         # while game not over
         # selection, 从tree中往下选择出节点进行扩张(TreePolicy)
+        # 洗牌，这样才能保证后面的牌是随机的（相对于真正的发牌顺序）
+        env.game.dealer.shuffle()
         v = self.tree_policy(self.tree_root,env)
         reward = self.default_policy(v,env)
         while v is not None:
