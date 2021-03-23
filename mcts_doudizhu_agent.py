@@ -1,3 +1,4 @@
+# 模拟阶段不带洗牌，也就是说处于明牌状态
 import copy
 from rlcard.envs import Env
 import time
