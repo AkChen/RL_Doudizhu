@@ -3,8 +3,11 @@ import copy
 from rlcard.envs import Env
 import time
 import random
+import numpy as np
 from math import log,sqrt
-
+from rlcard.games.doudizhu.utils import cards2str,doudizhu_sort_card
+from collections import OrderedDict
+import functools
 # single player tree
 ROOT_KEY = 0
 ROOT_ACTION = 0
@@ -102,9 +105,12 @@ class MPMCTSAgent(object):
         player_id = env.get_player_id()
         #print(player_id)
         action = random.sample(node.legal_actions[player_id], 1)[0]
+
         while not env.is_over():
+
             # step forward
             next_state,next_player_id = env.step(action,False)
+
             if not env.is_over():
                 action = random.sample(next_state['legal_actions'],1)[0]
         # game over
@@ -125,6 +131,83 @@ class MPMCTSAgent(object):
 
             v = v.parent
 
+    def save_other_player_cards(self,env:Env):
+        cur_player_id = env.get_player_id()
+        other_player_id = []
+        for i in range(3):
+            if i != cur_player_id:
+                other_player_id.append(i)
+
+        self.other_hands = [[] for i in range(3)] # 手牌
+        self.other_singles = [[] for i in range(3)] # 去重的牌
+        for id in other_player_id:
+            self.other_hands[id] = copy.deepcopy(env.game.players[id]._current_hand)
+            self.other_singles[id] = env.game.players[id].singles
+
+
+
+    def restore_other_player_cards(self,env:Env):
+        cur_player_id = env.get_player_id()
+        other_player_id = []
+        for i in range(3):
+            if i != cur_player_id:
+                other_player_id.append(i)
+
+        for id in other_player_id:
+            env.game.players[id]._current_hand = self.other_hands[id]
+            env.game.players[id].singles = self.other_singles[id]
+            cardstr = cards2str(env.game.players[id]._current_hand)
+            env.game.judger.playable_cards[id] = env.game.judger.playable_cards_from_hand(cardstr)
+
+
+    # 打乱两个人的牌并按照长度重新分配
+    def shuffle_other_player_cards(self,env:Env):
+        cur_player_id = env.get_player_id()
+        other_player_id = []
+        for i in range(3):
+            if i != cur_player_id:
+                other_player_id.append(i)
+
+        other_hands = [[] for i in range(3)]
+        # 合并二者
+        merged_hands = []
+        for id in other_player_id:
+            other_hands[id] = copy.deepcopy(env.game.players[id]._current_hand)
+            merged_hands.extend(other_hands[id])
+
+        merged_hands = np.asarray(merged_hands)
+
+        other_shuffuled_hands = [[] for i in range(3)]
+        other_shuffuled_idx = random.sample(range(len(merged_hands)), len(merged_hands))
+        idx_start = 0
+        other_shuffled_singels = [[] for i in range(3)]
+
+        for id in other_player_id:
+            # 选取
+            hands = list(merged_hands[other_shuffuled_idx[idx_start:idx_start + len(other_hands[id])]])
+            # 排序
+            hands.sort(key=functools.cmp_to_key(doudizhu_sort_card))
+            other_shuffuled_hands[id] = hands
+            idx_start += len(other_hands[id])
+
+            st = cards2str(other_shuffuled_hands[id])
+            cardstr = "".join(OrderedDict.fromkeys(cards2str(other_shuffuled_hands[id])))
+            other_shuffled_singels[id] = cardstr
+
+        # 设置数据到env
+        for id in other_player_id:
+            # 手牌更新
+            env.game.players[id]._current_hand = list(other_shuffuled_hands[id])
+            # 去重更新
+            env.game.players[id].singles = other_shuffled_singels[id]
+            # 重新计算可出的牌
+            cardstr = cards2str(env.game.players[id]._current_hand)
+            env.game.judger.playable_cards[id] = env.game.judger.playable_cards_from_hand(cardstr)
+
+
+
+
+
 
     def step(self,ts):
         # 以当前状态为跟节点进行模拟,
@@ -140,18 +223,23 @@ class MPMCTSAgent(object):
                                         legal_actions=legal_actions_list, parent=None,
                                         player_num=self.env.action_num)
         # 模拟次数
-        # 时间戳记录
+        # 备份另外两家的牌
+        self.save_other_player_cards(self.env)
+
         temp_timestep = self.env.timestep
-        #print("temp_ts:{} ".format(temp_timestep))
+
         for i in range(200):
-            #env_copy = copy.deepcopy(self.env)
-            #print("sim i:{}".format(i))
+            # 洗牌
+            self.shuffle_other_player_cards(self.env)
+            # 执行模拟
             self.run_simulation(self.env)
             # 恢复初始状态
-            for j in range(self.env.timestep-temp_timestep):
-                if not self.env.step_back():
-                    print("step back false")
-            self.env.timestep = temp_timestep
+            while self.env.timestep > temp_timestep:
+                self.env.step_back()
+                self.env.timestep -= 1
+
+        # 恢复至最初状态
+        self.restore_other_player_cards(self.env)
 
         # 获取当前玩家最大ucb值
         max_UCB_node = self.get_max_UCB_child_node(self.tree_root,0,self.env.get_player_id())

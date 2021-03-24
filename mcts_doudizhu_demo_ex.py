@@ -2,7 +2,7 @@ import tensorflow as tf
 import os
 
 import rlcard
-from mcts_doudizhu_agent import MPMCTSAgent,mcts_tournament
+from mcts_doudizhu_agent_ex import MPMCTSAgent,mcts_tournament
 from rlcard.utils import set_global_seed,tournament
 from rlcard.agents import RandomAgent
 from rlcard.utils import Logger
