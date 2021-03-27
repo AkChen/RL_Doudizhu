@@ -9,7 +9,7 @@ env.set_agents([RandomAgent(env.action_num),RandomAgent(env.action_num),RandomAg
 
 a = 0
 for i in range(1000):
-    trans,_ = env.run(is_training=True)
+    trans,_ = env.run(is_training=False)
     if(len(trans[0]) > a):
         print(len(trans[0]))
         a = len(trans[0])

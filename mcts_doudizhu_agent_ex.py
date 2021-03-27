@@ -30,11 +30,12 @@ class MPMCTSTreeNode(object):
 
 class MPMCTSAgent(object):
 
-    def __init__(self,env:Env, # for simulation
+    def __init__(self,env:Env,emu_num :int, # for simulation
 ):
         self.env = env
         self.use_raw = False
         self.fake_action_prob = [0.0 for i in range(env.action_num)]
+        self.emu_num = emu_num
 
     # 每次run之前都要初始化env，与外部保持一致
 
@@ -228,7 +229,7 @@ class MPMCTSAgent(object):
 
         temp_timestep = self.env.timestep
 
-        for i in range(200):
+        for i in range(self.emu_num):
             # 洗牌
             self.shuffle_other_player_cards(self.env)
             # 执行模拟
@@ -271,9 +272,9 @@ def mcts_tournament(env, num):
     payoffs = [0 for _ in range(env.player_num)]
     counter = 0
     while counter < num:
-        print("counter:{}".format(counter))
 
         _, _payoffs = env.run(is_training=False)
+        print("counter:{} payoff:{}".format(counter,_payoffs))
         for p in range(env.player_num):
             print(env.game.players[p].initial_hand)
         if isinstance(_payoffs, list):
@@ -285,6 +286,7 @@ def mcts_tournament(env, num):
             for i, _ in enumerate(payoffs):
                 payoffs[i] += _payoffs[i]
             counter += 1
+
     for i, _ in enumerate(payoffs):
         payoffs[i] /= counter
     return payoffs

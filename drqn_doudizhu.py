@@ -72,6 +72,7 @@ with tf.Session() as sess:
 
     for episode in range(episode_num):
 
+        print('train episode :'+str(episode+1))
         # Generate data from the environment
         agent_1.reset_step_history()
         agent_2.reset_step_history()
@@ -86,7 +87,7 @@ with tf.Session() as sess:
                 agents[i].feed(trans_history)
 
         #print(episode)
-        if episode % evaluate_every == 0:
+        if episode+1 % evaluate_every == 0:
             payoff = drqn_tournament(eval_env, evaluate_num)
             for i in range(3):
                 loggers[i].log_performance(env.timestep, payoff[i])
