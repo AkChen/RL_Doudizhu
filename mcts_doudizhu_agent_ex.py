@@ -252,7 +252,7 @@ class MPMCTSAgent(object):
             else:
                 hand_str += c.suit[0:1]
 
-        print("landlord:{} player_id:{} hand:{} action:{}".format(self.env.game.round.landlord_id,cur_player_id,hand_str,self.env._ACTION_LIST[max_UCB_node.action]))
+        #print("landlord:{} player_id:{} hand:{} action:{}".format(self.env.game.round.landlord_id,cur_player_id,hand_str,self.env._ACTION_LIST[max_UCB_node.action]))
         return max_UCB_node.action
 
     def eval_step(self,ts):
@@ -275,8 +275,8 @@ def mcts_tournament(env, num):
 
         _, _payoffs = env.run(is_training=False)
         print("counter:{} payoff:{}".format(counter,_payoffs))
-        for p in range(env.player_num):
-            print(env.game.players[p].initial_hand)
+        #for p in range(env.player_num):
+            #print(env.game.players[p].initial_hand)
         if isinstance(_payoffs, list):
             for _p in _payoffs:
                 for i, _ in enumerate(payoffs):

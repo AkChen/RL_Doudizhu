@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-
+import time
 import rlcard
 from mcts_doudizhu_agent_ex import MPMCTSAgent,mcts_tournament
 from rlcard.utils import set_global_seed,tournament
@@ -14,7 +14,7 @@ eval_env_2 = rlcard.make('doudizhu', config={'seed': 0,'allow_step_back':True})
 
 # Set the iterations numbers and how frequently we evaluate/save plot
 evaluate_num = 100
-emu_num = 100
+emu_num = 50
 
 log_dir = './experiments/doudizhu_mcts_vs_random_result/'
 
@@ -33,20 +33,17 @@ eval_env_2.set_agents([rdm_agent,agent,agent]) # mcts当农民
 logger = Logger(log_dir)
 
 logger.log("MCTS-UCT VS Random")
-logger.log("MCTS-UCT = 地主")
-logger.log_performance(eval_env_1.timestep,mcts_tournament(eval_env_1, evaluate_num)[0])
-logger.log("MCTS-UCT = 农民")
-logger.log_performance(eval_env_2.timestep,mcts_tournament(eval_env_2, evaluate_num)[1])
+time_start = time.time()
+#logger.log_performance(eval_env_1.timestep,)
+logger.log("MCTS-UCT = landlord winrate:{} time:{}".format(mcts_tournament(eval_env_1, evaluate_num)[0],time.time()-time_start))
+logger.log("MCTS-UCT = peasant  winrate:{} time:{}".format(mcts_tournament(eval_env_2, evaluate_num)[1],time.time()-time_start))
 
 # Close files in the logger
 logger.close_files()
 
 # Plot the learning curve
-logger.plot('MCTS')
+#logger.plot('MCTS')
 
 # Save model
-save_dir = 'models/blackjack_mcts'
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-saver = tf.train.Saver()
+
 
