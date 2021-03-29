@@ -1,11 +1,12 @@
 import numpy as np
 from rlcard.utils.seeding import np_random
 
+
 class SRandomAgent(object):
     ''' A random agent. Random agents is for running toy examples on the card games
     '''
 
-    def __init__(self, action_num,seed):
+    def __init__(self, action_num, seed):
         ''' Initilize the random agent
 
         Args:
@@ -13,10 +14,9 @@ class SRandomAgent(object):
         '''
         self.use_raw = False
         self.action_num = action_num
-        self.np_random,_ = np_random(seed)
+        self.np_random, _ = np_random(seed)
 
-
-    def step(self,state):
+    def step(self, state):
         ''' Predict the action given the curent state in gerenerating training data.
 
         Args:
@@ -25,7 +25,7 @@ class SRandomAgent(object):
         Returns:
             action (int): The action predicted (randomly chosen) by the random agent
         '''
-        #return np.random.randint(0, self.action_num)
+        # return np.random.randint(0, self.action_num)
         return self.np_random.choice(state['legal_actions'])
 
     def eval_step(self, state):
@@ -41,5 +41,6 @@ class SRandomAgent(object):
         '''
         probs = [0 for _ in range(self.action_num)]
         for i in state['legal_actions']:
-            probs[i] = 1/len(state['legal_actions'])
+            probs[i] = 1 / len(state['legal_actions'])
         return self.step(state), probs
+

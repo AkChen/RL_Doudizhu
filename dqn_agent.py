@@ -31,6 +31,8 @@ from collections import namedtuple
 
 from rlcard.utils.utils import remove_illegal
 
+
+
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state', 'done'])
 
 
@@ -119,7 +121,9 @@ class DQNAgent(object):
         self.total_t += 1
         tmp = self.total_t - self.replay_memory_init_size
         if tmp>=0 and tmp%self.train_every == 0:
-            self.train()
+            return self.train()
+        else:
+            return -1
 
     def step(self, state):
         ''' Predict the action for generating training data
@@ -190,9 +194,11 @@ class DQNAgent(object):
         # Update the target estimator
         if self.train_t % self.update_target_estimator_every == 0:
             copy_model_parameters(self.sess, self.q_estimator, self.target_estimator)
-            print("\nINFO - Copied model parameters to target network.")
+            print("\rINFO - Copied model parameters to target network.")
 
         self.train_t += 1
+
+        return loss
 
     def feed_memory(self, state, action, reward, next_state, done):
         ''' Feed transition to memory

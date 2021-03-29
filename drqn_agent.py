@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
-
+from tensorflow.python.ops import init_ops
 
 class DRQNAgent(object):
 
@@ -139,7 +139,7 @@ class DRQNAgent(object):
         # make sure the source q-net have been trained as least once.
         if self.total_t >= self.memory_init_size and self.train_t % self.update_target_estimator_every == 0:
             self.copy_esimator_params(self.sess, self.q_estimator, self.target_estimator)
-            print("INFO - copy params finished\n")
+            #print("INFO - copy params finished\n")
 
     def copy_esimator_params(self, sess, estimator1, estimator2):
 
@@ -190,8 +190,8 @@ class DRQNAgent(object):
 
         loss = self.q_estimator.update(self.sess, batch_states, batch_actions, target_batch, batch_step_length)
         self.train_t += 1
-        if self.train_t % self.show_info_every == 0:
-            print('INFO - Agent {}, step {}, rl-loss: {}\n'.format(self.scope, self.total_t, loss), end='')
+        #if self.train_t % self.show_info_every == 0:
+            #print('INFO - Agent {}, step {}, rl-loss: {}\n'.format(self.scope, self.total_t, loss), end='')
 
         return loss
 
@@ -201,8 +201,8 @@ class DRQNAgent(object):
         # 历史时长增加
         self.cur_step += 1
 
-        if self.cur_step > self.max_step:
-            print("step:cur_step is lagger than max_step")
+        #if self.cur_step > self.max_step:
+            #print("step:cur_step is lagger than max_step")
 
         estimator_data, step_length = np.asarray([self.history_states]), np.asarray([self.cur_step])
         action_prob = self.predict(estimator_data, step_length)[0]  # batch_size =1 取第一个
@@ -245,6 +245,66 @@ class DRQNAgent(object):
         dic['target_q_net'] = self.target_estimator.get_param_dict()
         return dic
 
+    # 保存可训练参数至文件
+
+    def save_trainable_param_to_file(self,sess,file_name):
+        # 每个estimator的可训练参数
+        #param_dict = self.get_param_dict()
+
+        q_net_dict = dict()
+        target_net_dict = dict()
+
+        q_net_params = [t for t in tf.trainable_variables() if t.name.startswith(self.q_estimator.scope)]
+        q_net_params = sorted(q_net_params, key=lambda v: v.name)
+        for p in q_net_params:
+            name = p.name
+            #$print(name)
+            q_net_dict[name.strip(self.q_estimator.scope)] = sess.run(p)
+
+        target_net_params = [t for t in tf.trainable_variables() if t.name.startswith(self.target_estimator.scope)]
+        target_net_params = sorted(target_net_params, key=lambda v: v.name)
+        for p in target_net_params:
+            name = p.name
+            #print(name)
+            target_net_dict[name.strip(self.target_estimator.scope)] = sess.run(p)
+
+        save_dict = dict()
+        save_dict['q_net'] = q_net_dict
+        save_dict['target_net'] = target_net_dict
+
+        np.save(file_name,save_dict)
+
+    # 将训练好的参数导入
+    def load_trainable_param_from_file(self,sess,file_name):
+        save_dict = np.load(file_name,allow_pickle=True)[()]
+        q_net_dict = save_dict['q_net']
+        target_net_dict = save_dict['target_net']
+
+        q_net_params = [t for t in tf.trainable_variables() if t.name.startswith(self.q_estimator.scope)]
+        q_net_params = sorted(q_net_params, key=lambda v: v.name)
+
+        for p in q_net_params:
+            name = p.name
+            #print(name)
+            assert q_net_dict.__contains__(name.strip(self.q_estimator.scope))
+            param_eval = q_net_dict[name.strip(self.q_estimator.scope)]
+            opt = p.assign(param_eval)
+            sess.run(opt)
+
+        target_net_params = [t for t in tf.trainable_variables() if t.name.startswith(self.target_estimator.scope)]
+        target_net_params = sorted(target_net_params, key=lambda v: v.name)
+
+        for p in target_net_params:
+            name = p.name
+            #print(name)
+            assert target_net_dict.__contains__(name.strip(self.target_estimator.scope))
+            param_eval = target_net_dict[name.strip(self.target_estimator.scope)]
+            opt = p.assign(param_eval)
+            sess.run(opt)
+
+
+
+
 
 class Estimator():
     def __init__(self, scope="estimator", action_num=2, learning_rate=0.001, max_step=50, state_shape=None,
@@ -270,6 +330,7 @@ class Estimator():
         with tf.control_dependencies(update_ops):
             self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_steps)
 
+
     def _build_model(self, param_dict):
         # 时间长度 每个样本的时间长度
         self.T_pl = tf.placeholder(shape=[None], dtype=tf.int32, name='T')
@@ -290,7 +351,13 @@ class Estimator():
         for s in self.state_shape:
             state_flatten_dim *= s
 
-        X = tf.layers.batch_normalization(self.X_pl, training=self.is_train)
+        # batch norm layer 也包含训练参数
+        if param_dict is not None:
+            self.batch_norm_layer = param_dict['batch_norm_layer']
+        else:
+            self.batch_norm_layer = None
+
+        X,self.batch_norm_layer = _batch_normalization(self.X_pl,training=self.is_train,layer = self.batch_norm_layer)
 
         fc = tf.reshape(X, [-1, self.max_time_step, state_flatten_dim])
 
@@ -354,10 +421,11 @@ class Estimator():
 
     def get_param_dict(self):
         dic = dict()
-
+        dic['scope'] = self.scope
         dic['mlp_fc_dense'] = self.mlp_fc_dense
         dic['cell'] = self.cell
         dic['predict_dense'] = self.predict_dense
+        dic['batch_norm_layer'] = self.batch_norm_layer
 
         return dic
 
@@ -375,6 +443,10 @@ class Estimator():
             feed_dict=feed_dict)
 
         return loss
+
+
+
+
 
 
 def remove_illegal(action_probs, legal_actions):
@@ -397,33 +469,60 @@ def remove_illegal(action_probs, legal_actions):
     return probs
 
 
-# 评测方法
-def drqn_tournament(env, num):
-    ''' Evaluate he performance of the agents in the environment
 
-    Args:
-        env (Env class): The environment to be evaluated.
-        num (int): The number of games to play.
 
-    Returns:
-        A list of avrage payoffs for each player
-    '''
-    payoffs = [0 for _ in range(env.player_num)]
-    counter = 0
-    while counter < num:
-        for agent in env.agents:
-            agent.reset_step_history()
-        # 每次run之前需要reset history
-        _, _payoffs = env.run(is_training=False)
-        if isinstance(_payoffs, list):
-            for _p in _payoffs:
-                for i, _ in enumerate(payoffs):
-                    payoffs[i] += _p[i]
-                counter += 1
-        else:
-            for i, _ in enumerate(payoffs):
-                payoffs[i] += _payoffs[i]
-            counter += 1
-    for i, _ in enumerate(payoffs):
-        payoffs[i] /= counter
-    return payoffs
+# return output,batch_norm_layer
+def _batch_normalization(inputs,
+                            axis=-1,
+                            momentum=0.99,
+                            epsilon=1e-3,
+                            center=True,
+                            scale=True,
+                            beta_initializer=init_ops.zeros_initializer(),
+                            gamma_initializer=init_ops.ones_initializer(),
+                            moving_mean_initializer=init_ops.zeros_initializer(),
+                            moving_variance_initializer=init_ops.ones_initializer(),
+                            beta_regularizer=None,
+                            gamma_regularizer=None,
+                            beta_constraint=None,
+                            gamma_constraint=None,
+                            training=False,
+                            trainable=True,
+                            name=None,
+                            reuse=None,
+                            renorm=False,
+                            renorm_clipping=None,
+                            renorm_momentum=0.99,
+                            fused=None,
+                            virtual_batch_size=None,
+                            adjustment=None,
+                            layer = None):
+    if layer is None:
+        layer = tf.layers.BatchNormalization(
+            axis=axis,
+            momentum=momentum,
+            epsilon=epsilon,
+            center=center,
+            scale=scale,
+            beta_initializer=beta_initializer,
+            gamma_initializer=gamma_initializer,
+            moving_mean_initializer=moving_mean_initializer,
+            moving_variance_initializer=moving_variance_initializer,
+            beta_regularizer=beta_regularizer,
+            gamma_regularizer=gamma_regularizer,
+            beta_constraint=beta_constraint,
+            gamma_constraint=gamma_constraint,
+            renorm=renorm,
+            renorm_clipping=renorm_clipping,
+            renorm_momentum=renorm_momentum,
+            fused=fused,
+            trainable=trainable,
+            virtual_batch_size=virtual_batch_size,
+            adjustment=adjustment,
+            name=name,
+            _reuse=reuse,
+            _scope=name)
+
+    return layer.apply(inputs, training=training),layer
+
+

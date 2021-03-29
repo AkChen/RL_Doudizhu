@@ -1,6 +1,7 @@
 # 模拟阶段不带洗牌，也就是说处于明牌状态
 import copy
 from rlcard.envs import Env
+from dqn_agent import DQNAgent
 import time
 import random
 import numpy as np
@@ -28,14 +29,16 @@ class MPMCTSTreeNode(object):
 
 
 
-class MPMCTSAgent(object):
+class MPMCTSDQNAgent(object):
 
     def __init__(self,env:Env,emu_num :int, # for simulation
+                 dqn_agents # 3个玩家的agent
 ):
         self.env = env
         self.use_raw = False
         self.fake_action_prob = [0.0 for i in range(env.action_num)]
         self.emu_num = emu_num
+        self.dqn_agents = dqn_agents
 
     # 每次run之前都要初始化env，与外部保持一致
 
@@ -111,15 +114,18 @@ class MPMCTSAgent(object):
             return env.get_payoffs()
         player_id = env.get_player_id()
         #print(player_id)
-        action = random.sample(node.legal_actions[player_id], 1)[0]
+        state = env.get_state(player_id)
+
+        action,_ = self.dqn_agents[player_id].eval_step(state)
 
         while not env.is_over():
-
+            print(action)
             # step forward
             next_state,next_player_id = env.step(action,False)
 
             if not env.is_over():
-                action = random.sample(next_state['legal_actions'],1)[0]
+                #action = random.sample(next_state['legal_actions'],1)[0]
+                action, prob = self.dqn_agents[next_player_id].eval_step(state)
         # game over
         return env.get_payoffs()
 

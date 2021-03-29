@@ -2,11 +2,13 @@ import tensorflow as tf
 import os
 
 import rlcard
-from drqn_agent import DRQNAgent, drqn_tournament
+from drqn_agent import DRQNAgent
 from rlcard.utils import set_global_seed, tournament
 from rlcard.utils import Logger
 
 # Make environment
+from eval_util import general_tournament
+
 env = rlcard.make('blackjack', config={'seed': 0})
 eval_env = rlcard.make('blackjack', config={'seed': 0})
 
@@ -65,7 +67,7 @@ with tf.Session() as sess:
         #print(episode)
         if episode % evaluate_every == 0:
             print('')
-            logger.log_performance(env.timestep, drqn_tournament(eval_env, evaluate_num)[0])
+            logger.log_performance(env.timestep, general_tournament(eval_env, evaluate_num)[0])
 
     # Close files in the logger
     logger.close_files()

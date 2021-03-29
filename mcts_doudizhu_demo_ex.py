@@ -2,10 +2,11 @@ import tensorflow as tf
 import os
 
 import rlcard
-from mcts_doudizhu_agent_ex import MPMCTSAgent,mcts_tournament
+from mcts_doudizhu_agent_ex import MPMCTSAgent
 from rlcard.utils import set_global_seed,tournament
 from rlcard.agents import RandomAgent
 from rlcard.utils import Logger
+from eval_util import general_tournament
 
 
 
@@ -34,7 +35,7 @@ logger = Logger(log_dir)
 for episode in range(episode_num):
     # Evaluate the performance. Play with random agents.
     if episode % evaluate_every == 0:
-        logger.log_performance(eval_env.timestep,mcts_tournament(eval_env, evaluate_num)[0])
+        logger.log_performance(eval_env.timestep,general_tournament(eval_env, evaluate_num)[0])
 
 # Close files in the logger
 logger.close_files()

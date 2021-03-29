@@ -38,11 +38,17 @@ class MPMCTSAgent(object):
 
     def get_untried_action(self,node:MPMCTSTreeNode,player_id):
 
+        untried_actions = []
         for legal_action in node.legal_actions[player_id]:
             # action没有扩张或者这个player_id访问的次数为1(初始化次数)
-            if (not node.children.__contains__(legal_action)) or (node.children[legal_action].visit_num[player_id] == 1):
-                return legal_action
-        return None
+            if (not node.children.__contains__(legal_action)) or (
+                    node.children[legal_action].visit_num[player_id] == 1):
+                untried_actions.append(legal_action)
+
+        if len(untried_actions) == 0:
+            return None
+        else:
+            return random.sample(untried_actions, 1)[0]
 
 
     # return expanded child node
@@ -170,33 +176,4 @@ class MPMCTSAgent(object):
         return self.step(ts),self.fake_action_prob
 
 
-def mcts_tournament(env, num):
-    ''' Evaluate he performance of the agents in the environment
 
-    Args:
-        env (Env class): The environment to be evaluated.
-        num (int): The number of games to play.
-
-    Returns:
-        A list of avrage payoffs for each player
-    '''
-    payoffs = [0 for _ in range(env.player_num)]
-    counter = 0
-    while counter < num:
-        print("counter:{}".format(counter))
-
-        _, _payoffs = env.run(is_training=False)
-        for p in range(env.player_num):
-            print(env.game.players[p].initial_hand)
-        if isinstance(_payoffs, list):
-            for _p in _payoffs:
-                for i, _ in enumerate(payoffs):
-                    payoffs[i] += _p[i]
-                counter += 1
-        else:
-            for i, _ in enumerate(payoffs):
-                payoffs[i] += _payoffs[i]
-            counter += 1
-    for i, _ in enumerate(payoffs):
-        payoffs[i] /= counter
-    return payoffs
