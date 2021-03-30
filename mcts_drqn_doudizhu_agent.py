@@ -1,7 +1,6 @@
 # 模拟阶段不带洗牌，也就是说处于明牌状态
 import copy
 from rlcard.envs import Env
-from dqn_agent import DQNAgent
 import time
 import random
 import numpy as np
@@ -29,16 +28,16 @@ class MPMCTSTreeNode(object):
 
 
 
-class MPMCTSDQNAgent(object):
+class MPMCTSDRQNAgent(object):
 
     def __init__(self,env:Env,emu_num :int, # for simulation
-                 dqn_agents # 3个玩家的agent
+                 drqn_agents # 3个玩家的agent
 ):
         self.env = env
         self.use_raw = False
         self.fake_action_prob = [0.0 for i in range(env.action_num)]
         self.emu_num = emu_num
-        self.dqn_agents = dqn_agents
+        self.drqn_agents = drqn_agents
 
     # 每次run之前都要初始化env，与外部保持一致
 
@@ -116,16 +115,15 @@ class MPMCTSDQNAgent(object):
         #print(player_id)
         state = env.get_state(player_id)
 
-        action,_ = self.dqn_agents[player_id].eval_step(state)
-
+        action,_ = self.drqn_agents[player_id].eval_step(state)
         while not env.is_over():
-            print(action)
+            #print(action)
             # step forward
             next_state,next_player_id = env.step(action,False)
 
             if not env.is_over():
                 #action = random.sample(next_state['legal_actions'],1)[0]
-                action, prob = self.dqn_agents[next_player_id].eval_step(next_state)
+                action, _ = self.drqn_agents[next_player_id].eval_step(next_state)
         # game over
         return env.get_payoffs()
 
@@ -244,6 +242,12 @@ class MPMCTSDQNAgent(object):
         for i in range(self.emu_num):
             # 洗牌
             self.shuffle_other_player_cards(self.env)
+            # 每个玩家的历史轨迹缓存
+            #self.player_history_trans = [[] for i in range(self.env.player_num)]
+            #self.player_history_trans[cur_player_id].append(ts) # 当前玩家放入一个
+            for pid in range(self.env.player_num):
+                self.drqn_agents[pid].reset_step_history()
+            self.drqn_agents[cur_player_id].eval_step(ts)
             # 执行模拟
             self.run_simulation(self.env)
             # 恢复初始状态

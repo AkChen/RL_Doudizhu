@@ -14,13 +14,13 @@ from eval_util import general_tournament
 train_env = rlcard.make('doudizhu', config={'seed': 0})
 
 # Set the iterations numbers and how frequently we evaluate/save plot
-evaluate_every = 20
+evaluate_every = 50
 evaluate_num = 100
 episode_num = 100000
 
 # The intial memory size
 memory_init_size = 100
-
+memory_size = 6000
 # Train the agent every X steps
 train_every = 1
 
@@ -49,13 +49,15 @@ with tf.Session() as sess:
 
     # Set up the agents
     agent = DQNAgent(sess,
-                      scope='doudizhu_dqn',
+                      scope='doudizhu_dqn_L',
                       action_num=train_env.action_num,
                       replay_memory_init_size=memory_init_size,
+                        replay_memory_size= memory_size,
                       train_every=train_every,
                       state_shape=train_env.state_shape,
-                      mlp_layers=[16,32],
+                      mlp_layers=[32,32],
                       )
+
 
     train_env.set_agents([agent,RandomAgent(train_env.action_num),RandomAgent(train_env.action_num)])
 
@@ -71,15 +73,12 @@ with tf.Session() as sess:
         trajectories, _ = train_env.run(is_training=True)
 
         # Feed transitions into agent memory, and train the agent
-        loss = 0.0
-        loss_count = 0
-        for ts in trajectories[0]:
-            cur_loss = agent.feed(ts)
-            if cur_loss > 0:
-                loss += cur_loss
-                loss_count += 1
-        if loss_count > 0:
-            loss = loss / loss_count
+
+        for tss in trajectories[:1]:
+            for ts in tss:
+                agent.feed(ts)
+
+
 
         #print(episode)
         if episode % evaluate_every == 0:
@@ -97,7 +96,7 @@ with tf.Session() as sess:
             logger.log("episode:{} time:{} peasant winrate:{}".format(episode, time.time() - time_start, payoffs2[1]))
             P_WR_logger.log_performance(episode, payoffs2[1])
 
-            loss_logger.log_performance(episode,loss)
+            #
 
             save_flag = False
             if payoffs1[0] > max_L_WR:

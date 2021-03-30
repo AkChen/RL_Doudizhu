@@ -29,7 +29,7 @@ saver.restore(sess, save_dir)
 
 # Set the iterations numbers and how frequently we evaluate/save plot
 evaluate_num = 100
-emu_num = 50
+emu_num = 10
 
 log_dir = './experiments/doudizhu_mcts_dqn_vs_random_result/'
 

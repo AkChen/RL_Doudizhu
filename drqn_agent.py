@@ -114,7 +114,7 @@ class DRQNAgent(object):
         # randomly select a tans that length >= 1
         assert len(trans) >= 1
 
-        random_start_index = 0  # np.random.randint(low=0,high=len(trans))
+        random_start_index = np.random.randint(low=0,high=len(trans))
         random_start_trans = trans[random_start_index:]
         for t, ts in enumerate(random_start_trans):
             assert (t < self.max_step)

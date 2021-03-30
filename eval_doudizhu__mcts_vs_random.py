@@ -39,7 +39,7 @@ logger.log("MCTS-UCT = landlord winrate:{} time:{}".format(general_tournament(ev
 set_global_seed(0)
 eval_env = rlcard.make('doudizhu', config={'seed': 0,'allow_step_back':True})
 mcts_agent = MPMCTSAgent(eval_env,emu_num=emu_num)
-eval_env.set_agents([SRandomAgent(eval_env.action_num,seed=0),SRandomAgent(eval_env.action_num,seed=0),mcts_agent])
+eval_env.set_agents([SRandomAgent(eval_env.action_num,seed=0),mcts_agent,mcts_agent])
 
 time_start = time.time()
 logger.log("MCTS-UCT = peasant  winrate:{} time:{}".format(general_tournament(eval_env, evaluate_num,True)[1],time.time()-time_start))
