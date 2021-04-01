@@ -247,6 +247,12 @@ class MPMCTSAgent(object):
 
         # 恢复至最初状态
         self.restore_other_player_cards(self.env)
+        # 计算每个action的ucb值
+        action_ucb = []
+        for k,v in self.tree_root.children.items():
+            ucb_val = self.caculate_node_UCB(v,0.0,self.env.get_player_id())
+            action_ucb.append((self.env._ACTION_LIST[k],ucb_val))
+        print(action_ucb)
 
         # 获取当前玩家最大ucb值
         max_UCB_node = self.get_max_UCB_child_node(self.tree_root,0,self.env.get_player_id())
@@ -258,7 +264,7 @@ class MPMCTSAgent(object):
             else:
                 hand_str += c.suit[0:1]
 
-        #print("landlord:{} player_id:{} hand:{} action:{}".format(self.env.game.round.landlord_id,cur_player_id,hand_str,self.env._ACTION_LIST[max_UCB_node.action]))
+        print("landlord:{} player_id:{} hand:{} action:{}".format(self.env.game.round.landlord_id,cur_player_id,hand_str,self.env._ACTION_LIST[max_UCB_node.action]))
         return max_UCB_node.action
 
     def eval_step(self,ts):

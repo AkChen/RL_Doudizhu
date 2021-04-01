@@ -15,7 +15,7 @@ from eval_util import general_tournament
 train_env = rlcard.make('doudizhu', config={'seed': 0})
 
 # Set the iterations numbers and how frequently we evaluate/save plot
-evaluate_every = 500
+evaluate_every = 5
 evaluate_num = 100
 episode_num = 100000
 
@@ -124,8 +124,8 @@ with tf.Session(config=config) as sess:
                 agent.save_trainable_param_to_file(sess, best_model_path)
 
             #loss_logger.plot('DRQN loss')
-            #L_WR_logger.plot('DRQN L WR')
-            #P_WR_logger.plot('DRQN P WR')
+            L_WR_logger.plot('DRQN L WR')
+            P_WR_logger.plot('DRQN P WR')
 
         sys.stdout.flush()
 

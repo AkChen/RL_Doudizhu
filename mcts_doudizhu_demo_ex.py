@@ -24,11 +24,12 @@ log_dir = './experiments/blackjack_mcts_result/'
 set_global_seed(0)
 
 # Set up the agents
-agent = MPMCTSAgent(eval_env)
+agent = MPMCTSAgent(eval_env,emu_num=100)
 rdm_agent = RandomAgent(action_num=eval_env.action_num)
-eval_env.set_agents([agent,agent,agent])
+eval_env.set_agents([agent,rdm_agent,rdm_agent])
 
-
+eval_env.run(is_training=False)
+print(eval_env.game.round.trace)
 # Init a Logger to plot the learning curve
 logger = Logger(log_dir)
 

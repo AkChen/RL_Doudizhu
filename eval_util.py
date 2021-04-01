@@ -4,6 +4,7 @@ from SeedRanomAgent import SRandomAgent
 from dqn_agent import DQNAgent
 from mcts_doudizhu_agent_ex import MPMCTSAgent
 import rlcard
+import sys
 
 def general_tournament(env,num,verbose = False):
     payoffs = [0 for _ in range(env.player_num)]
@@ -16,6 +17,7 @@ def general_tournament(env,num,verbose = False):
         _, _payoffs = env.run(is_training=False)
         if verbose:
             print("counter:{}/{},result:{}".format(counter + 1, num,_payoffs))
+            sys.stdout.flush()
 
         if isinstance(_payoffs, list):
             for _p in _payoffs:

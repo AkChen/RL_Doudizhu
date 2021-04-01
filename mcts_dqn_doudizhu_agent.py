@@ -119,7 +119,7 @@ class MPMCTSDQNAgent(object):
         action,_ = self.dqn_agents[player_id].eval_step(state)
 
         while not env.is_over():
-            print(action)
+            #print(action)
             # step forward
             next_state,next_player_id = env.step(action,False)
 

@@ -13,7 +13,15 @@ from dqn_agent import DQNAgent
 # load dqn
 best_model_path = './models/doudizhu_train_drqn_as_L_vs_random_and_eval_vs_random_best.npy'
 env = rlcard.make('doudizhu', config={'seed': 0, 'allow_step_back': True})
-sess = tf.Session()
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
+
+sess = tf.Session(config=config)
+
 drqn_agent = DRQNAgent(sess,
                       scope='doudizhu_drqn',
                       action_num=env.action_num,

@@ -12,7 +12,7 @@ from eval_util import *
 
 # Set the iterations numbers and how frequently we evaluate/save plot
 evaluate_num = 100
-emu_num = 50
+emu_num = 25
 
 log_dir = './experiments/doudizhu_mcts_vs_random_result/'
 

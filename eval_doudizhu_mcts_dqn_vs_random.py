@@ -11,9 +11,16 @@ from mcts_dqn_doudizhu_agent import MPMCTSDQNAgent
 from dqn_agent import DQNAgent
 
 # load dqn
-best_model_path = './models/doudizhu_train_dqn_vs_dqn_and_eval_vs_random_best'
+best_model_path = './models/doudizhu_train_dqn_as_L_vs_random_and_eval_vs_random_best'
 e = rlcard.make('doudizhu', config={'seed': 0, 'allow_step_back': True})
-sess = tf.Session()
+
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+
+sess = tf.Session(config=config)
 dqn_agent = DQNAgent(sess,
                      scope='doudizhu_dqn',
                      action_num=e.action_num,
@@ -63,3 +70,4 @@ logger.log("MCTS-UCT+DQN = peasant  winrate:{} time:{}".format(general_tournamen
 
 # Close files in the logger
 logger.close_files()
+sess.close()

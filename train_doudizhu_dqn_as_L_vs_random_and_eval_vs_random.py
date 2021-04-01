@@ -7,6 +7,7 @@ from rlcard.utils import set_global_seed
 from rlcard.utils import Logger
 from rlcard.agents.random_agent import RandomAgent
 from SeedRanomAgent import SRandomAgent
+import sys
 
 # Make environment
 from eval_util import general_tournament
@@ -43,7 +44,12 @@ max_L_WR = 0.0
 # Set a global seed
 set_global_seed(0)
 
-with tf.Session() as sess:
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
+with tf.Session(config=config) as sess:
     # Initialize a global step
     global_step = tf.Variable(0, name='global_step', trainable=False)
 
@@ -68,7 +74,8 @@ with tf.Session() as sess:
 
 
     for episode in range(episode_num):
-
+        print(episode)
+        sys.stdout.flush()
         # Generate data from the environment
         trajectories, _ = train_env.run(is_training=True)
 
@@ -121,9 +128,9 @@ with tf.Session() as sess:
     logger.close_files()
 
     # Plot the learning curve
-    loss_logger.plot('DQN loss')
-    L_WR_logger.plot('DQN L WR')
-    P_WR_logger.plot('DQN P WR')
+    #loss_logger.plot('DQN loss')
+    #L_WR_logger.plot('DQN L WR')
+    #P_WR_logger.plot('DQN P WR')
     # Save model
     save_dir = best_model_path
     if not os.path.exists(save_dir):
